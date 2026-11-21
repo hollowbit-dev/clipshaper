@@ -14,6 +14,7 @@ const { transcribe } = require('./core/transcribe');
 const moments = require('./core/moments');
 const Reframe = require('./core/reframe');
 const llm = require('./core/llm');
+const { createLinks, looksLikeLink } = require('./core/links');
 const store = require('./store');
 const { setupUpdates } = require('./update-check');
 
@@ -329,7 +330,7 @@ function registerIpc() {
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi'] }] });
     return r.canceled ? null : r.filePaths[0];
   });
-  ipcMain.handle('open-media', async (_e, file) => {
+  ipcMain.handle('open-media', async (_e, file, title) => {
     if (!file || !fs.existsSync(file)) throw new Error('That file is no longer there.');
     allowed.add(file);
     const info = await probe(file);
@@ -338,8 +339,9 @@ function registerIpc() {
     const id = projectId(file);
     let project = null;
     try { project = JSON.parse(fs.readFileSync(path.join(projectsDir(), `${id}.json`), 'utf8')); } catch (e) { /* new */ }
-    store.addRecent({ file, name: path.basename(file), duration: info.duration, at: Date.now(), id });
-    return { file, name: path.basename(file), id, info, project };
+    const name = title || path.basename(file);
+    store.addRecent({ file, name, duration: info.duration, at: Date.now(), id });
+    return { file, name, id, info, project };
   });
   ipcMain.handle('save-project', (_e, { id, project }) => {
     fs.mkdirSync(projectsDir(), { recursive: true });
@@ -378,6 +380,26 @@ function registerIpc() {
       const cuts = await cutsP;
       return { language: tr.language, noSpace: tr.noSpace, words: tr.words, duration: tr.duration, clips: found.clips, method: found.method, cuts };
     } finally { jobs.delete(jobId); }
+  });
+  // A link from YouTube, TikTok, Instagram, X, Twitch… downloaded into the app's folder first.
+  ipcMain.handle('download-link', async (_e, { jobId, url, browser }) => {
+    if (!looksLikeLink(url)) throw new Error("That doesn't look like a link.");
+    const ctrl = new AbortController(); jobs.set(jobId, ctrl);
+    try {
+      const r = await links().download(url.trim(), {
+        outDir: path.join(app.getPath('userData'), 'downloads'), signal: ctrl.signal, browser,
+        onProgress: (p) => send('job-progress', { jobId, stage: p.stage === 'setup' ? 'fetch-setup' : 'fetch', pct: p.pct, title: p.title }),
+      });
+      return r;
+    } finally { jobs.delete(jobId); }
+  });
+  // Browsers whose login a link can borrow, most common first.
+  ipcMain.handle('browsers', () => {
+    const mac = [['chrome', 'Google Chrome'], ['brave', 'Brave Browser'], ['edge', 'Microsoft Edge'], ['firefox', 'Firefox'], ['safari', 'Safari']];
+    if (isMac) return mac.filter(([, n]) => fs.existsSync(`/Applications/${n}.app`) || fs.existsSync(path.join(os.homedir(), 'Applications', `${n}.app`))).map(([id, name]) => ({ id, name: name.replace('Google ', '').replace('Microsoft ', '').replace(' Browser', '') }));
+    const la = process.env.LOCALAPPDATA || ''; const ad = process.env.APPDATA || '';
+    const win = [['chrome', 'Chrome', path.join(la, 'Google', 'Chrome')], ['edge', 'Edge', path.join(la, 'Microsoft', 'Edge')], ['brave', 'Brave', path.join(la, 'BraveSoftware')], ['firefox', 'Firefox', path.join(ad, 'Mozilla', 'Firefox')]];
+    return win.filter(([, , d]) => fs.existsSync(d)).map(([id, name]) => ({ id, name }));
   });
   ipcMain.handle('frames', (_e, { file, start, end, fps }) => framesFor(file, { start, end, fps }));
   ipcMain.handle('cancel-job', (_e, jobId) => { const c = jobs.get(jobId); if (c) c.abort(); return true; });
@@ -422,6 +444,9 @@ function registerIpc() {
   ipcMain.handle('open-external', (_e, u) => { if (/^https:\/\//.test(u)) shell.openExternal(u); });
   ipcMain.handle('check-updates', () => updates.check({ manual: true }));
 }
+
+let linksApi = null;
+const links = () => linksApi || (linksApi = createLinks({ dir: path.join(app.getPath('userData'), 'bin'), ffmpeg: bins.ffmpeg, fetch: (u) => net.fetch(u) }));
 
 function uniquePath(p) {
   if (!fs.existsSync(p)) return p;

@@ -19,6 +19,7 @@ const ICON = {
   center: '<svg viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M8 6v4M6 8h4"/></svg>',
   trash: '<svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>',
   folder: '<svg viewBox="0 0 16 16"><path d="M1.5 4.5v8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H8L6.5 3.5h-4a1 1 0 0 0-1 1z"/></svg>',
+  link: '<svg viewBox="0 0 16 16"><path d="M6.5 9.5a3 3 0 0 0 4.2 0l2.3-2.3a3 3 0 0 0-4.2-4.2l-.9.9"/><path d="M9.5 6.5a3 3 0 0 0-4.2 0L3 8.8A3 3 0 0 0 7.2 13l.9-.9"/></svg>',
   check: '<svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></svg>',
   spark: '<svg viewBox="0 0 16 16"><path d="M8 1.5 9.4 6.6 14.5 8 9.4 9.4 8 14.5 6.6 9.4 1.5 8l5.1-1.4z"/></svg>',
   cc: '<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="M7 6.5a2 2 0 1 0 0 3M11.5 6.5a2 2 0 1 0 0 3"/></svg>',
@@ -94,11 +95,18 @@ function renderHome() {
         <div class="drop-icon">${ICON.spark}</div>
         <div class="drop-text"><b>Drop a video here</b><span>or click to choose · MP4, MOV, MKV, WebM</span></div>
       </button>
+      <form class="link ${need.length ? 'disabled' : ''}" id="link-form">
+        <span class="link-icon">${ICON.link}</span>
+        <input id="link" placeholder="Or paste a link: YouTube, TikTok, Instagram, X, Twitch…" spellcheck="false" autocomplete="off">
+        <button class="btn primary" id="link-go" type="submit">Get clips</button>
+      </form>
+      <p class="fine muted">Only use videos you own or have permission to use.</p>
     </div>
     ${state.recent.length ? `<aside class="recent"><h3>Recent</h3>${state.recent.slice(0, 8).map((r) => `<button class="recent-row" data-file="${esc(r.file)}"><span class="rname">${esc(r.name)}</span><span class="muted num">${fmt(r.duration)}</span></button>`).join('')}</aside>` : ''}
   </div>`;
   $('#drop').onclick = async () => { if (!modelsReady()) return toast('Download the models first.'); const f = await window.cs.pickVideo(); if (f) openVideo(f); };
   $$('.recent-row').forEach((b) => { b.onclick = () => openVideo(b.dataset.file); });
+  $('#link-form').onsubmit = (e) => { e.preventDefault(); openLink($('#link').value); };
   const go = $('#dl-go'); if (go) go.onclick = () => { state.models.filter((m) => !m.installed).forEach((m) => window.cs.downloadModel(m.id)); state.models.forEach((m) => { if (!m.installed) m.downloading = true; }); renderHome(); };
   const cancel = $('#dl-cancel'); if (cancel) cancel.onclick = () => state.models.forEach((m) => window.cs.cancelDownload(m.id));
 }
@@ -145,6 +153,55 @@ async function openVideo(file) {
   analyze();
 }
 
+// A link: download it (stage "fetch"), then carry on exactly like a dropped file.
+async function openLink(raw, { browser } = {}) {
+  const url = String(raw || '').trim();
+  if (job || !url) return;
+  if (!/^https?:\/\/\S+\.\S+/i.test(url)) return toast("That doesn't look like a link.", { kind: 'bad' });
+  if (!modelsReady()) return toast('Download the models first.');
+  job = { id: uid(), fetch: true };
+  let host = url; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { /* keep */ }
+  current = { media: { name: host, info: { duration: 0 } }, project: null, sel: null };
+  renderWorking(); setStage('fetch', 0);
+  try {
+    const r = await window.cs.downloadLink({ jobId: job.id, url, browser });
+    const media = await window.cs.openMedia(r.file, r.title);
+    const st = await window.cs.getState(); state.recent = st.recent;
+    if (media.project && media.project.clips) {
+      job = null;
+      current = { media, project: media.project, sel: media.project.clips[0] ? media.project.clips[0].id : null };
+      renderClips(); scanFaces(); return;
+    }
+    current = { media, project: null, sel: null };
+    $('.work-head b').textContent = media.name; $('.work-head .muted').textContent = fmt(media.info.duration);
+    analyze();
+  } catch (e) {
+    const wasCancel = /Cancelled/.test(String(e.message)) || (job && job.cancelled);
+    job = null;
+    renderHome();
+    if (wasCancel) return;
+    const i = $('#link'); if (i) i.value = url;
+    const msg = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+    if (/^LOGIN: /.test(msg) && !browser) {
+      // Offer the user's own browser login (read on this computer, only sent to that site).
+      const list = await window.cs.browsers();
+      const b = list.find((x) => x.id === state.settings.browser) || list[0];
+      if (b) {
+        toast(`${msg.slice(7)} Use your ${b.name} login? You need to be logged in there.`, { kind: 'bad', ms: 20000, action: `Use ${b.name} login`, onAction: () => { window.cs.setSettings({ browser: b.id }); openLink(url, { browser: b.id }); } });
+        return;
+      }
+    }
+    toast(msg.replace(/^LOGIN: /, '') + (/^LOGIN: /.test(msg) ? ' Download it yourself, then drop the file in.' : ''), { kind: 'bad', ms: 9000 });
+  }
+}
+// Pasting a link anywhere on the home screen starts it.
+window.addEventListener('paste', (e) => {
+  if (current || job || document.activeElement === $('#link')) return;
+  const t = (e.clipboardData.getData('text') || '').trim();
+  if (/^https?:\/\//i.test(t)) { e.preventDefault(); openLink(t); }
+});
+
+const FETCH = { id: 'fetch', label: 'Downloading the video', sub: 'From the link you pasted' };
 const STAGES = [
   { id: 'listen', label: 'Listening', sub: 'Writing down every word' },
   { id: 'moments', label: 'Finding the best moments', sub: 'Reading the whole thing like an editor' },
@@ -156,21 +213,22 @@ function renderWorking() {
   <div class="working">
     <div class="work-card card">
       <div class="work-head"><b class="ell">${esc(media.name)}</b><span class="muted num">${fmt(media.info.duration)}</span></div>
-      <ol class="stages">${STAGES.map((s) => `<li data-stage="${s.id}"><span class="dot"></span><div><b>${s.label}</b><span class="muted st-sub">${s.sub}</span></div><span class="muted num st-pct"></span></li>`).join('')}</ol>
+      <ol class="stages">${stageList().map((s) => `<li data-stage="${s.id}"><span class="dot"></span><div><b>${s.label}</b><span class="muted st-sub">${s.sub}</span></div><span class="muted num st-pct"></span></li>`).join('')}</ol>
       <div class="bar big"><i id="work-bar"></i></div>
       <div class="work-foot"><span class="muted" id="work-note">This runs on your computer. A 30-minute video takes a few minutes.</span><button class="btn ghost" id="work-cancel">Cancel</button></div>
     </div>
   </div>`;
   $('#work-cancel').onclick = () => { if (job) window.cs.cancelJob(job.id); job = job && { ...job, cancelled: true }; };
 }
+const stageList = () => (job && job.fetch ? [FETCH, ...STAGES] : STAGES);
 function setStage(id, pct, sub) {
-  const order = STAGES.map((s) => s.id);
+  const order = stageList().map((s) => s.id);
   const k = order.indexOf(id);
   $$('.stages li').forEach((li, i) => { li.classList.toggle('done', i < k); li.classList.toggle('on', i === k); });
   const li = $(`.stages li[data-stage="${id}"]`); if (!li) return;
   if (pct != null) $('.st-pct', li).textContent = `${Math.round(pct)}%`;
   if (sub) $('.st-sub', li).textContent = sub;
-  const w = [0.62, 0.23, 0.15]; let total = 0;
+  const w = job && job.fetch ? [0.15, 0.53, 0.19, 0.13] : [0.62, 0.23, 0.15]; let total = 0;
   for (let i = 0; i < k; i++) total += w[i];
   total += w[k] * (pct || 0) / 100;
   const bar = $('#work-bar'); if (bar) bar.style.width = `${Math.round(total * 100)}%`;
@@ -180,14 +238,19 @@ function onJobProgress(p) {
     if (exporting && p.jobId === exporting.jobId) exporting.onPct(p.pct);
     return;
   }
+  if (p.stage === 'fetch-setup') setStage('fetch', p.pct, 'Getting the link downloader (one time)');
+  if (p.stage === 'fetch') {
+    setStage('fetch', p.pct, p.title ? 'From the link you pasted' : null);
+    if (p.title) { const h = $('.work-head b'); if (h) h.textContent = p.title; }
+  }
   if (p.stage === 'listen') setStage('listen', p.pct, p.words ? `${(job.words = (job.words || 0) + p.words).toLocaleString()} words so far` : null);
   if (p.stage === 'moments') setStage('moments', p.pct);
   if (p.stage === 'cuts') setStage('moments', 100);
 }
 
 async function analyze() {
-  job = { id: uid() };
-  renderWorking(); setStage('listen', 0);
+  if (!job) { job = { id: uid() }; renderWorking(); }
+  setStage('listen', 0);
   const { media } = current;
   try {
     const r = await window.cs.analyze({ jobId: job.id, file: media.file, language: state.settings.language || 'auto', info: media.info });
@@ -549,5 +612,5 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-window.__cs = { get current() { return current; }, openVideo, exportClips };
+window.__cs = { get current() { return current; }, openVideo, openLink, exportClips };
 boot();
