@@ -3,6 +3,11 @@
 // that picks self-contained stretches with a strong opening line, and the picks are then snapped to
 // sentence edges, held to clip-friendly lengths, de-duplicated and ranked.
 // Pure functions except find(), which takes the model's `ask` function, so tests can fake it.
+// Works in node (the app) and in the browser (the web version) alike.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.Moments = factory();
+}(typeof self !== 'undefined' ? self : this, () => {
 
 const MIN_LEN = 15;
 const MAX_LEN = 75;
@@ -57,7 +62,7 @@ A great clip:
 
 Skip intros, greetings, sponsor reads, "subscribe" requests, small talk and anything that needs earlier context.
 Only pick moments that are genuinely good. Fewer great clips beat many average ones.
-title: a short catchy hook for the clip, at most 8 words, in the transcript's language, no hashtags, no emoji, no quotes.
+title: a few words that tease the moment, in the transcript's language. No hashtags, emoji or quotes.
 score: 1 to 10, how well it would do as a short. Be strict: 9-10 only for standout moments.`;
 
 const SCHEMA = {
@@ -109,6 +114,8 @@ function shape(sents, pick) {
 
 function cleanTitle(t, fallback) {
   let s = String(t || '').replace(/[#"“”]|\p{Extended_Pictographic}/gu, '').replace(/\s+/g, ' ').trim();
+  // Small models sometimes echo the instructions instead of writing a title.
+  if (/tease the moment|catchy hook|at most \d+ words|transcript'?s language|^title\b/i.test(s)) s = '';
   if (!s) s = fallback.split(' ').slice(0, 7).join(' ');
   if (s.length > 70) s = s.slice(0, 67).replace(/\s+\S*$/, '') + '…';
   return s.replace(/[.,;:]$/, '');
@@ -148,12 +155,12 @@ function fallback(sents, duration) {
 }
 
 // ask({ system, user, schema }) → parsed JSON. onProgress(0..100).
-async function find(words, { duration, ask, onProgress = () => {}, signal } = {}) {
+async function find(words, { duration, ask, onProgress = () => {}, signal, span, overlap } = {}) {
   const sents = sentences(words);
   if (!sents.length) return { clips: [], sentences: sents, method: 'none' };
   const dur = duration || sents[sents.length - 1].end;
   if (!ask) return { clips: fallback(sents, dur), sentences: sents, method: 'fallback' };
-  const wins = windows(sents);
+  const wins = windows(sents, { span, overlap });
   const want = Math.max(2, Math.min(6, Math.ceil(target(dur) * 1.6 / wins.length)));
   const picks = [];
   for (let k = 0; k < wins.length; k++) {
@@ -176,4 +183,5 @@ async function find(words, { duration, ask, onProgress = () => {}, signal } = {}
   return { clips, sentences: sents, method: 'model' };
 }
 
-module.exports = { sentences, windows, shape, dedupe, fallback, find, target, SYSTEM, SCHEMA, windowPrompt, MIN_LEN, MAX_LEN };
+return { sentences, windows, shape, dedupe, fallback, find, target, SYSTEM, SCHEMA, windowPrompt, MIN_LEN, MAX_LEN };
+}));

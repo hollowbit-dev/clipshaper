@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clipshaper Web · Free AI clip maker in your browser</title>
+  <meta name="description" content="Turn a long video into short vertical clips with captions, right in your browser. Finds the best moments, follows faces, adds captions. Free, no sign-up, and your video is never uploaded.">
+  <link rel="canonical" href="https://hollowbit.dev/clipshaper/try/">
+  <meta property="og:title" content="Clipshaper Web · Free AI clip maker in your browser"><meta property="og:description" content="Long video in, short clips out. Free, no sign-up, nothing uploaded."><meta property="og:image" content="https://hollowbit.dev/clipshaper/img/og.png"><meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#08090b">
+  <link rel="icon" href="assets/icon-64.png">
+  <link rel="stylesheet" href="app.css?v=__V__">
+  <script src="backend.js?v=__V__"></script>
+  <script src="core/captions.js?v=__V__"></script>
+  <script src="core/fonts.js?v=__V__"></script>
+  <script src="core/render.js?v=__V__"></script>
+  <script src="core/reframe.js?v=__V__"></script>
+  <script src="core/moments.js?v=__V__"></script>
+  <script type="module" src="app.js?v=__V__"></script>
+</head>
+<body>
+  <div class="titlebar"></div>
+  <div id="view"></div>
+  <div id="drop-overlay"><div class="drop-card"><div class="drop-title">Drop to find clips</div><div class="drop-sub">A long video works best</div></div></div>
+  <div id="toasts" role="status" aria-live="polite"></div>
+  <noscript>Clipshaper Web needs JavaScript.</noscript>
+</body>
+</html>

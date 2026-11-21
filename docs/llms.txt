@@ -1,0 +1,9 @@
+# Clipshaper
+
+> Free, open-source AI clip maker by Hollowbit Studio: turns long videos (podcasts, streams, talks) into short vertical clips with captions for TikTok, Reels and YouTube Shorts. It transcribes with Whisper, picks the best moments with a small local language model (Qwen), follows faces to reframe 16:9 to 9:16, and burns in word-by-word captions. Runs on Mac and Windows, or in the browser at https://hollowbit.dev/clipshaper/try/. Videos are never uploaded; no watermark, no account.
+
+- [Try in the browser](https://hollowbit.dev/clipshaper/try/)
+- [Download](https://hollowbit.dev/clipshaper/download.html)
+- [FAQ](https://hollowbit.dev/clipshaper/faq.html)
+- [Privacy](https://hollowbit.dev/clipshaper/privacy.html)
+- [Source code](https://github.com/hollowbit-dev/clipshaper)

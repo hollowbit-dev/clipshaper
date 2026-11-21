@@ -8,7 +8,8 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "start": "electron .",
-    "test:engine": "node test/engine.mjs"
+    "test:engine": "node test/engine.mjs",
+    "site": "node site/build.mjs"
   },
   "devDependencies": {
     "electron": "^33.4.11",

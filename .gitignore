@@ -4,3 +4,5 @@ vendor/
 test/out/
 test/cache/
 .DS_Store
+web/proto/
+web/proto-run.mjs

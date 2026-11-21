@@ -1,14 +1,16 @@
 // Finds faces in small frames, on this computer, with MediaPipe's BlazeFace (a ~230 KB model).
 // The detector looks at a 128×128 picture, so a wide frame is checked as three overlapping
 // squares (left, middle, right). That keeps faces in wide shots big enough to be found.
-import { FilesetResolver, FaceDetector } from 'clipshaper://faces/vision_bundle.mjs';
+// The app serves these from clipshaper://faces; the web version from its own folder.
+const BASE = (window.cs && window.cs.facesBase) || 'clipshaper://faces';
 
 let detector = null;
 async function ready() {
   if (detector) return detector;
-  const files = await FilesetResolver.forVisionTasks('clipshaper://faces');
+  const { FilesetResolver, FaceDetector } = await import(`${BASE}/vision_bundle.mjs`);
+  const files = await FilesetResolver.forVisionTasks(BASE);
   detector = await FaceDetector.createFromOptions(files, {
-    baseOptions: { modelAssetPath: 'clipshaper://faces/model.tflite', delegate: 'CPU' },
+    baseOptions: { modelAssetPath: `${BASE}/model.tflite`, delegate: 'CPU' },
     runningMode: 'IMAGE', minDetectionConfidence: 0.5, minSuppressionThreshold: 0.3,
   });
   return detector;

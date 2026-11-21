@@ -7,6 +7,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const view = $('#view');
+const ASSETS = window.cs.assetsBase || '../../assets';
 const OUT_W = 1080; const OUT_H = 1920;
 
 const ICON = {
@@ -45,7 +46,7 @@ function toast(msg, { kind = '', action, onAction, ms = 4200 } = {}) {
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 // ---------- Fonts (the preview measures text the same way the export does) ----------
-const fontsReady = Promise.all(Fonts.FONTS.map((f) => new FontFace(Fonts.css(f.id), `url(../../assets/fonts/${f.file})`).load().then((ff) => document.fonts.add(ff)).catch(() => {})));
+const fontsReady = Promise.all(Fonts.FONTS.map((f) => new FontFace(Fonts.css(f.id), `url(${ASSETS}/fonts/${f.file})`).load().then((ff) => document.fonts.add(ff)).catch(() => {})));
 const measureCtx = document.createElement('canvas').getContext('2d');
 const measureCache = new Map();
 function measure(text, font, em) {
@@ -80,7 +81,7 @@ function renderHome() {
   view.innerHTML = `
   <div class="home">
     <div class="home-main">
-      <div class="brand"><div class="logo"></div><span>Clipshaper</span></div>
+      ${window.cs.web ? '<a class="brand" href="../" title="Clipshaper website">' : '<div class="brand">'}<img class="logo" src="${ASSETS}/icon.png" alt=""><span>Clipshaper</span>${window.cs.web ? '<span class="web-pill">Web</span></a>' : '</div>'}
       <h1>Long video in.<br><span class="grad">Short clips out.</span></h1>
       <p class="lede">Drop a podcast, stream or talk. Clipshaper finds the best moments, frames them for phones and adds captions. On your computer, nothing uploaded.</p>
       ${need.length ? `
@@ -95,18 +96,24 @@ function renderHome() {
         <div class="drop-icon">${ICON.spark}</div>
         <div class="drop-text"><b>Drop a video here</b><span>or click to choose · MP4, MOV, MKV, WebM</span></div>
       </button>
-      <form class="link ${need.length ? 'disabled' : ''}" id="link-form">
+      ${window.cs.web ? `<div class="web-note card" id="web-note">
+        <span class="link-icon">${ICON.link}</span>
+        <div><b>Got a YouTube, TikTok or Twitch link?</b><span class="muted">Browsers can't download from other sites. The free app can, and it's faster with bigger models.</span></div>
+        <a class="btn" href="../download.html">Get the app</a>
+      </div>
+      <p class="fine muted" id="gpu-note">Runs in this tab. Your video is never uploaded. The first run downloads about 1 GB of models, once.</p>` : `<form class="link ${need.length ? 'disabled' : ''}" id="link-form">
         <span class="link-icon">${ICON.link}</span>
         <input id="link" placeholder="Or paste a link: YouTube, TikTok, Instagram, X, Twitch…" spellcheck="false" autocomplete="off">
         <button class="btn primary" id="link-go" type="submit">Get clips</button>
       </form>
-      <p class="fine muted">Only use videos you own or have permission to use.</p>
+      <p class="fine muted">Only use videos you own or have permission to use.</p>`}
     </div>
     ${state.recent.length ? `<aside class="recent"><h3>Recent</h3>${state.recent.slice(0, 8).map((r) => `<button class="recent-row" data-file="${esc(r.file)}"><span class="rname">${esc(r.name)}</span><span class="muted num">${fmt(r.duration)}</span></button>`).join('')}</aside>` : ''}
   </div>`;
   $('#drop').onclick = async () => { if (!modelsReady()) return toast('Download the models first.'); const f = await window.cs.pickVideo(); if (f) openVideo(f); };
   $$('.recent-row').forEach((b) => { b.onclick = () => openVideo(b.dataset.file); });
-  $('#link-form').onsubmit = (e) => { e.preventDefault(); openLink($('#link').value); };
+  if ($('#link-form')) $('#link-form').onsubmit = (e) => { e.preventDefault(); openLink($('#link').value); };
+  if (window.cs.web) window.cs.hasGpu().then((ok) => { if (!ok && $('#gpu-note')) $('#gpu-note').textContent = "This browser has no WebGPU, so clips are picked by a simpler method. Chrome or Edge on a recent computer gives the best picks, or get the app."; });
   const go = $('#dl-go'); if (go) go.onclick = () => { state.models.filter((m) => !m.installed).forEach((m) => window.cs.downloadModel(m.id)); state.models.forEach((m) => { if (!m.installed) m.downloading = true; }); renderHome(); };
   const cancel = $('#dl-cancel'); if (cancel) cancel.onclick = () => state.models.forEach((m) => window.cs.cancelDownload(m.id));
 }
@@ -243,8 +250,8 @@ function onJobProgress(p) {
     setStage('fetch', p.pct, p.title ? 'From the link you pasted' : null);
     if (p.title) { const h = $('.work-head b'); if (h) h.textContent = p.title; }
   }
-  if (p.stage === 'listen') setStage('listen', p.pct, p.words ? `${(job.words = (job.words || 0) + p.words).toLocaleString()} words so far` : null);
-  if (p.stage === 'moments') setStage('moments', p.pct);
+  if (p.stage === 'listen') setStage('listen', p.pct, p.words ? `${(job.words = (job.words || 0) + p.words).toLocaleString()} words so far` : p.note || null);
+  if (p.stage === 'moments') setStage('moments', p.pct, p.note || null);
   if (p.stage === 'cuts') setStage('moments', 100);
 }
 
@@ -568,14 +575,13 @@ function removeClip(c) {
 let exporting = null;
 async function exportClips(list) {
   if (exporting || !list.length) return;
-  let folder = state.settings.outDir;
-  folder = await window.cs.pickFolder();
+  const folder = await window.cs.pickFolder();
   if (!folder) return;
   state.settings.outDir = folder;
   const { media, project } = current;
   const sheet = document.createElement('div');
   sheet.className = 'sheet-back';
-  sheet.innerHTML = `<div class="sheet card"><b id="ex-title">Exporting ${list.length} clip${list.length > 1 ? 's' : ''}</b><div class="bar big"><i id="ex-bar"></i></div><span class="muted" id="ex-note"></span><div class="sheet-foot"><button class="btn ghost" id="ex-cancel">Cancel</button></div></div>`;
+  sheet.innerHTML = `<div class="sheet card"><b id="ex-title">Exporting ${list.length} clip${list.length > 1 ? 's' : ''}</b><div class="bar big"><i id="ex-bar"></i></div><span class="muted" id="ex-note"></span>${WEB ? '<span class="muted fine-sm">Clips record in real time. Keep this tab open and in front.</span>' : ''}<div class="sheet-foot"><button class="btn ghost" id="ex-cancel">Cancel</button></div></div>`;
   document.body.append(sheet);
   let stop = false; const done = [];
   $('#ex-cancel', sheet).onclick = () => { stop = true; if (exporting) window.cs.cancelJob(exporting.jobId); };
@@ -588,16 +594,70 @@ async function exportClips(list) {
       exporting = { jobId, onPct: (pct) => { $('#ex-bar', sheet).style.width = `${(100 * (k + pct / 100) / list.length).toFixed(1)}%`; } };
       const ass = project.captions ? R.toASS(clipCaptions(c), project.style, { width: OUT_W, height: OUT_H, measure, noSpace: project.noSpace }) : '';
       const n = project.clips.indexOf(c) + 1;
+      if (WEB) { const name = await webExport(c, exporting.onPct, () => stop); if (name) done.push(name); continue; }
       const out = await window.cs.exportClip({ jobId, file: media.file, info: media.info, folder, clip: { start: c.start, end: c.end, mode: c.mode === 'center' ? 'follow' : c.mode, keys: c.mode === 'center' ? [{ t: 0, cx: 0.5 }] : c.keys, ass, name: `${String(n).padStart(2, '0')} ${c.title}` } });
       done.push(out);
     }
     sheet.remove();
-    if (done.length) toast(`Saved ${done.length} clip${done.length > 1 ? 's' : ''}.`, { kind: 'ok', action: 'Show', onAction: () => window.cs.showInFolder(done[0]), ms: 9000 });
+    if (done.length) toast(WEB ? `Downloaded ${done.length} clip${done.length > 1 ? 's' : ''}.` : `Saved ${done.length} clip${done.length > 1 ? 's' : ''}.`, WEB ? { kind: 'ok' } : { kind: 'ok', action: 'Show', onAction: () => window.cs.showInFolder(done[0]), ms: 9000 });
   } catch (e) {
     sheet.remove();
     if (!stop) toast(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), { kind: 'bad', ms: 9000 });
     else if (done.length) toast(`Stopped. Saved ${done.length}.`, { action: 'Show', onAction: () => window.cs.showInFolder(done[0]) });
   } finally { exporting = null; }
+}
+
+// ---------- Web version: export by recording the 9:16 canvas while the clip plays ----------
+// Same framing and captions as the preview (and the app). Plays in real time, sound included.
+const WEB = !!window.cs.web;
+async function webExport(c, onPct, isStopped) {
+  const { media, project } = current;
+  const caps = project.captions ? clipCaptions(c) : [];
+  const v = document.createElement('video');
+  v.src = media.file; v.preload = 'auto'; v.playsInline = true;
+  await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error("Couldn't read the video.")); });
+  v.currentTime = c.start; await new Promise((r) => { v.onseeked = r; });
+  const cv = document.createElement('canvas'); cv.width = OUT_W; cv.height = OUT_H;
+  const g = cv.getContext('2d');
+  const ac = new AudioContext();
+  const src = ac.createMediaElementSource(v); const dest = ac.createMediaStreamDestination(); src.connect(dest);
+  const stream = new MediaStream([...cv.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+  const type = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t));
+  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 8e6, audioBitsPerSecond: 192e3 });
+  const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const draw = () => {
+    const tc = Math.max(0, v.currentTime - c.start);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    drawFramed(g, v, c, tc, OUT_W, OUT_H);
+    const cap = caps.find((k) => tc >= k.start && tc < k.end);
+    if (cap) R.drawFrame(g, cap, project.style, tc, { W: OUT_W, H: OUT_H, measure, noSpace: project.noSpace });
+    onPct(100 * tc / (c.end - c.start));
+  };
+  draw();
+  rec.start(1000);
+  await ac.resume();
+  await v.play();
+  await new Promise((res) => {
+    const step = () => {
+      if (isStopped() || v.ended || v.currentTime >= c.end) return res();
+      draw();
+      v.requestVideoFrameCallback(step);
+    };
+    v.requestVideoFrameCallback(step);
+    v.addEventListener('ended', res, { once: true });
+  });
+  v.pause(); draw();
+  const stopped = new Promise((r) => { rec.onstop = r; });
+  rec.stop(); await stopped;
+  ac.close(); v.removeAttribute('src'); v.load();
+  if (isStopped()) return null;
+  const blob = new Blob(chunks, { type: type.split(';')[0] });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${c.title.replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) || 'Clip'}.${type.startsWith('video/mp4') ? 'mp4' : 'webm'}`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  return a.download;
 }
 
 // Keyboard: space plays, up/down moves between clips.
