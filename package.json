@@ -1,0 +1,21 @@
+{
+  "name": "clipshaper",
+  "version": "0.1.0",
+  "main": "src/main.js",
+  "productName": "Clipshaper",
+  "description": "Clipshaper by Hollowbit: free, offline short clips. Drop in a long video and get vertical, captioned clips of its best moments. Nothing is uploaded.",
+  "author": "Elvis Zygmanta",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "start": "electron .",
+    "test:engine": "node test/engine.mjs"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "playwright": "1.48"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.3"
+  }
+}

@@ -1,0 +1,31 @@
+// The only bridge between Clipshaper's window and the computer.
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const on = (ch) => (cb) => ipcRenderer.on(ch, (_e, d) => cb(d));
+contextBridge.exposeInMainWorld('cs', {
+  platform: process.platform,
+  pathFor: (file) => webUtils.getPathForFile(file),
+  fileUrl: (p) => `clipshaper://file/${encodeURIComponent(p)}`,
+  getState: () => ipcRenderer.invoke('get-state'),
+  setSettings: (p) => ipcRenderer.invoke('set-settings', p),
+  pickVideo: () => ipcRenderer.invoke('pick-video'),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  openMedia: (f) => ipcRenderer.invoke('open-media', f),
+  saveProject: (a) => ipcRenderer.invoke('save-project', a),
+  models: () => ipcRenderer.invoke('models'),
+  downloadModel: (id) => ipcRenderer.invoke('download-model', id),
+  cancelDownload: (id) => ipcRenderer.invoke('cancel-download', id),
+  analyze: (a) => ipcRenderer.invoke('analyze', a),
+  frames: (a) => ipcRenderer.invoke('frames', a),
+  cancelJob: (id) => ipcRenderer.invoke('cancel-job', id),
+  exportClip: (a) => ipcRenderer.invoke('export-clip', a),
+  showInFolder: (p) => ipcRenderer.invoke('show-in-folder', p),
+  openPath: (p) => ipcRenderer.invoke('open-path', p),
+  openExternal: (u) => ipcRenderer.invoke('open-external', u),
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+  rendererReady: () => ipcRenderer.invoke('renderer-ready'),
+  onUpdate: on('update'),
+  onProgress: on('job-progress'),
+  onModelProgress: on('model-progress'),
+  onOpenFiles: on('open-files'),
+  onFullscreen: on('fullscreen'),
+});

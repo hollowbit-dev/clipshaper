@@ -1,0 +1,6 @@
+node_modules/
+dist/
+vendor/
+test/out/
+test/cache/
+.DS_Store
