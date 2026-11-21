@@ -1,4 +1,4 @@
-# Third-party software in Captionshaper
+# Third-party software in Clipshaper
 
 Captionshaper is free software under the GNU GPL v3 or later (see LICENSE). It bundles:
 
@@ -14,3 +14,11 @@ Captionshaper is free software under the GNU GPL v3 or later (see LICENSE). It b
 | Electron | MIT | https://www.electronjs.org |
 
 The full licence texts are in each project's repository. The Geist licence is in assets/fonts/OFL.txt.
+
+## Added in Clipshaper
+
+- **llama.cpp** (MIT), https://github.com/ggml-org/llama.cpp: runs the moment finder on this computer.
+- **Qwen3.5-4B** (Apache-2.0), by the Qwen team, GGUF by Unsloth: the moment finder model, downloaded on first use.
+- **MediaPipe Tasks Vision and BlazeFace** (Apache-2.0), Google: face detection for the vertical framing.
+- **yt-dlp** (Unlicense), https://github.com/yt-dlp/yt-dlp: downloaded from its official release the first time a link is pasted.
+- Web version only: **transformers.js** (Apache-2.0, Hugging Face), **Whisper base** (MIT, OpenAI), **WebLLM** (Apache-2.0, MLC) and **Qwen2.5-1.5B-Instruct** (Apache-2.0).

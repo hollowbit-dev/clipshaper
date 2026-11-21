@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const video = process.argv[2] || path.join(os.homedir(), 'Downloads/fan-favorite-moments-from-the-good-place-chosen-by-you-ytshorts.savetube.vip.mp4');
 const out = path.join(root, 'test/out'); fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'clipshaper-test-'));
-const app = await electron.launch({ args: [root], env: { ...process.env, CLIPSHAPER_TEST: '1', CLIPSHAPER_USERDATA: data, CLIPSHAPER_CACHE: path.join(root, 'test/cache'), CLIPSHAPER_OUTDIR: out } });
+const app = await electron.launch({ ...(process.env.EXE ? { executablePath: process.env.EXE, args: [] } : { args: [root] }), env: { ...process.env, CLIPSHAPER_TEST: '1', CLIPSHAPER_USERDATA: data, ...(process.env.NOCACHE ? {} : { CLIPSHAPER_CACHE: path.join(root, 'test/cache') }), CLIPSHAPER_OUTDIR: out } });
 const win = await app.firstWindow();
 const logs = []; win.on('console', (m) => logs.push(`${m.type()}: ${m.text()}`)); win.on('pageerror', (e) => logs.push(`pageerror: ${e.message}`));
 let fails = 0; const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };

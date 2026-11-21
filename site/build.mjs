@@ -15,6 +15,7 @@ const UPDATED = '2026-11-21';
 const SITE = { url: 'https://hollowbit.dev/clipshaper', base: '/clipshaper/', github: 'https://github.com/hollowbit-dev/clipshaper', tip: 'https://ko-fi.com/hollowbit', studio: 'https://hollowbit.dev/' };
 const FILES = { mac: `Clipshaper-${V}-mac-arm64.dmg`, win: `Clipshaper-Setup-${V}-win-x64.exe` };
 const DL = `${SITE.github}/releases/latest/download/`;
+const mb = (f) => { const p = path.join(root, 'dist', f); return fs.existsSync(p) ? Math.round(fs.statSync(p).size / 1e6) : 150; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const B = SITE.base;
 
@@ -259,7 +260,7 @@ const download = () => `${pageHero('Download Clipshaper', `Version ${V}. Free, n
   </div>
   <div class="sizes glass reveal">
     <h3>What gets downloaded</h3>
-    <div class="size-row"><span>The app</span><b>about 200 MB</b></div>
+    <div class="size-row"><span>The app</span><b>\${mb(FILES.mac)} MB (Mac) · \${mb(FILES.win)} MB (Windows)</b></div>
     <div class="size-row"><span>Speech model (first run)</span><b>574 MB</b></div>
     <div class="size-row"><span>Moment finder (first run)</span><b>1.9 GB</b></div>
     <p class="muted">The models download once from Hugging Face, from inside the app. Already use Captionshaper or Writeshaper? Clipshaper reuses their models, so there's nothing extra to download.</p>
