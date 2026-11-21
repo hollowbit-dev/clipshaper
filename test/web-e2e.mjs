@@ -9,7 +9,7 @@ const ctx = await chromium.launchPersistentContext(profile, { channel: 'chrome',
 const p = await ctx.newPage();
 const logs = []; p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`${m.type()}: ${m.text().slice(0, 300)}`); }); p.on('pageerror', (e) => logs.push(`pageerror: ${e.message}`));
 let fails = 0; const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
-await p.goto('http://localhost:8791/clipshaper/try/');
+await p.goto(process.env.URL || 'http://localhost:8791/clipshaper/try/');
 await p.waitForSelector('.home', { timeout: 20000 });
 await p.screenshot({ path: `${out}/home.png` });
 const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('#drop')]);
