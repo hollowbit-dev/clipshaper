@@ -260,7 +260,7 @@ const download = () => `${pageHero('Download Clipshaper', `Version ${V}. Free, n
   </div>
   <div class="sizes glass reveal">
     <h3>What gets downloaded</h3>
-    <div class="size-row"><span>The app</span><b>\${mb(FILES.mac)} MB (Mac) · \${mb(FILES.win)} MB (Windows)</b></div>
+    <div class="size-row"><span>The app</span><b>${mb(FILES.mac)} MB (Mac) · ${mb(FILES.win)} MB (Windows)</b></div>
     <div class="size-row"><span>Speech model (first run)</span><b>574 MB</b></div>
     <div class="size-row"><span>Moment finder (first run)</span><b>1.9 GB</b></div>
     <p class="muted">The models download once from Hugging Face, from inside the app. Already use Captionshaper or Writeshaper? Clipshaper reuses their models, so there's nothing extra to download.</p>
