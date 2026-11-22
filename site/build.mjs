@@ -87,7 +87,7 @@ ${body}
     <div class="foot-grid">
       <div class="foot-brand"><a class="logo" href="${B}"><img src="${B}img/icon-64.png" width="28" height="28" alt=""><span>Clipshaper</span></a><p>Free AI clip maker. Long video in, short vertical clips out, with captions. Your video is never uploaded.</p></div>
       <div><b>Product</b><a href="${B}try/">Try in your browser</a><a href="${B}download.html">Download</a><a href="${SITE.github}/releases">Changelog</a></div>
-      <div><b>Help</b><a href="${B}faq.html">FAQ</a><a href="${B}privacy.html">Privacy</a><a href="${SITE.github}/issues">Report a problem</a></div>
+      <div><b>Help</b><a href="${B}faq.html">FAQ</a><a href="${B}privacy.html">Privacy</a><a href="${SITE.github}/issues">Report a problem</a><a href="https://discord.gg/ENSTjVpJj8" rel="noopener">Discord</a></div>
       <div><b>Hollowbit</b><a href="${SITE.studio}">Studio</a><a href="${SITE.github}">GitHub</a><a href="${SITE.tip}">Support us</a></div>
     </div>
     <div class="foot-mark" aria-hidden="true">Clipshaper</div>
