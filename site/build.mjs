@@ -15,7 +15,10 @@ const UPDATED = '2026-11-21';
 const SITE = { url: 'https://hollowbit.dev/clipshaper', base: '/clipshaper/', github: 'https://github.com/hollowbit-dev/clipshaper', tip: 'https://ko-fi.com/hollowbit', studio: 'https://hollowbit.dev/' };
 const FILES = { mac: `Clipshaper-${V}-mac-arm64.dmg`, win: `Clipshaper-Setup-${V}-win-x64.exe` };
 const DL = `${SITE.github}/releases/latest/download/`;
-const mb = (f) => { const p = path.join(root, 'dist', f); return fs.existsSync(p) ? Math.round(fs.statSync(p).size / 1e6) : 150; };
+// Sizes come from dist/ after a build, else from the published GitHub release, so the page never shows a guess.
+const REL = {};
+try { const r = await fetch(`https://api.github.com/repos/hollowbit-dev/clipshaper/releases/tags/v${V}`, { headers: { 'User-Agent': 'clipshaper-site', ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}) } }); if (r.ok) for (const a of (await r.json()).assets) REL[a.name] = a.size; } catch {}
+const mb = (f) => { const p = path.join(root, 'dist', f); const n = fs.existsSync(p) ? fs.statSync(p).size : REL[f]; if (!n) console.warn(`WARNING: no size for ${f}, showing 150 MB`); return n ? Math.round(n / 1e6) : 150; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const B = SITE.base;
 
